@@ -1,0 +1,18 @@
+postgresql:
+  username: xunfei123
+  password: xunfei123
+  host: localhost
+  port: 5432
+  database: redog
+  schema: public
+
+redis:
+  username: xunfei
+  password:
+  host: localhost
+  port: 5432
+  database: 0
+
+constant:
+  secret_key: "Qqewesdadsa"
+  time_delta: "86400"
