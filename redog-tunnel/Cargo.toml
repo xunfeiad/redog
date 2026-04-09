@@ -1,0 +1,21 @@
+[package]
+name = "redog-tunnel"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+redog-core = { workspace = true }
+redog-common = { workspace = true }
+redog-component = { workspace = true }
+redog-rules = { workspace = true }
+redog-adapter = { workspace = true }
+redog-listener = { workspace = true }
+redog-dns = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+dashmap = { workspace = true }
+arc-swap = { workspace = true }
+bytes = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }

@@ -1,0 +1,10 @@
+[package]
+name = "redog-transport"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+redog-core = { workspace = true }
+tokio = { workspace = true }
+bytes = { workspace = true }
+tracing = { workspace = true }

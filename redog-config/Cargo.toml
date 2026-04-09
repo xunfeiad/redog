@@ -1,0 +1,12 @@
+[package]
+name = "redog-config"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+redog-core = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }

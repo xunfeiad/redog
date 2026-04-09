@@ -1,0 +1,25 @@
+[package]
+name = "redog"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "redog"
+path = "src/main.rs"
+
+[dependencies]
+redog-core = { workspace = true }
+redog-common = { workspace = true }
+redog-config = { workspace = true }
+redog-tunnel = { workspace = true }
+redog-adapter = { workspace = true }
+redog-listener = { workspace = true }
+redog-dns = { workspace = true }
+redog-rules = { workspace = true }
+redog-api = { workspace = true }
+redog-component = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+arc-swap = { workspace = true }
+anyhow = { workspace = true }

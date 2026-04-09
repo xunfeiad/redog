@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Redog Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">
+        <img class="logo-mark" src="redog.svg" alt="Redog" />
+        <span class="logo-text">Redog</span>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-view="proxies">
+          <span class="icon">🌐</span><span>代理</span>
+        </button>
+        <button class="nav-item" data-view="nodes">
+          <span class="icon">🖥️</span><span>节点</span>
+        </button>
+        <button class="nav-item" data-view="rules">
+          <span class="icon">📋</span><span>规则</span>
+        </button>
+        <button class="nav-item" data-view="connections">
+          <span class="icon">🔗</span><span>连接</span>
+        </button>
+        <button class="nav-item" data-view="logs">
+          <span class="icon">📜</span><span>日志</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <span class="icon">⚙️</span><span>设置</span>
+        </button>
+        <button class="nav-item" data-view="about">
+          <span class="icon">ℹ️</span><span>关于</span>
+        </button>
+      </nav>
+      <div class="api-status-panel">
+        <div class="api-status offline" id="api-status">API 未连接</div>
+      </div>
+      <div class="traffic-panel">
+        <div class="traffic-item">
+          <div class="label">↑ 上传</div>
+          <div class="value" id="traffic-up">0 B/s</div>
+        </div>
+        <div class="traffic-item">
+          <div class="label">↓ 下载</div>
+          <div class="value" id="traffic-down">0 B/s</div>
+        </div>
+      </div>
+    </aside>
+    <main class="main">
+      <section class="view active" id="view-proxies">
+        <header class="view-header">
+          <h2>代理组</h2>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn" id="btn-test-all" title="测试所有节点延迟">测速</button>
+            <div class="mode-tabs">
+              <button class="mode-tab active" data-mode="rule">规则</button>
+              <button class="mode-tab" data-mode="global">全局</button>
+              <button class="mode-tab" data-mode="direct">直连</button>
+            </div>
+          </div>
+        </header>
+        <div class="groups" id="groups-list"></div>
+      </section>
+
+      <section class="view" id="view-nodes">
+        <header class="view-header">
+          <h2>节点管理</h2>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" id="btn-add-sub">+ 添加订阅</button>
+            <button class="btn btn-primary" id="btn-add-node">+ 手动添加</button>
+          </div>
+        </header>
+
+        <!-- 订阅列表 -->
+        <div class="section-title">订阅源</div>
+        <div class="node-list" id="sub-list">
+          <div class="empty-hint">暂无订阅，点击"添加订阅"导入</div>
+        </div>
+
+        <!-- 节点列表 -->
+        <div class="section-title" style="margin-top:20px">全部节点 <span class="badge" id="node-count">0</span></div>
+        <div class="node-list" id="node-list">
+          <div class="empty-hint">暂无节点</div>
+        </div>
+
+        <!-- 添加订阅弹窗 -->
+        <div class="modal-overlay" id="modal-sub" style="display:none">
+          <div class="modal">
+            <div class="modal-header">添加订阅</div>
+            <div class="modal-body">
+              <label class="form-label">订阅名称</label>
+              <input type="text" class="form-input" id="sub-name" placeholder="例: 我的机场" />
+              <label class="form-label">订阅链接</label>
+              <input type="text" class="form-input" id="sub-url" placeholder="https://example.com/subscribe?token=..." />
+              <label class="form-label">自动更新间隔 (小时)</label>
+              <input type="number" class="form-input" id="sub-interval" value="24" min="0" />
+            </div>
+            <div class="modal-footer">
+              <button class="btn" id="btn-sub-cancel">取消</button>
+              <button class="btn btn-primary" id="btn-sub-save">保存并更新</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 手动添加节点弹窗 -->
+        <div class="modal-overlay" id="modal-node" style="display:none">
+          <div class="modal">
+            <div class="modal-header">手动添加节点</div>
+            <div class="modal-body">
+              <label class="form-label">协议类型</label>
+              <select class="form-input" id="node-type">
+                <option value="ss">Shadowsocks</option>
+                <option value="vmess">VMess</option>
+                <option value="trojan">Trojan</option>
+                <option value="socks5">SOCKS5</option>
+                <option value="http">HTTP</option>
+              </select>
+              <label class="form-label">节点名称</label>
+              <input type="text" class="form-input" id="node-name" placeholder="例: 香港01" />
+              <label class="form-label">服务器地址</label>
+              <input type="text" class="form-input" id="node-server" placeholder="example.com" />
+              <label class="form-label">端口</label>
+              <input type="number" class="form-input" id="node-port" placeholder="443" />
+              <label class="form-label">密码 / UUID</label>
+              <input type="text" class="form-input" id="node-password" placeholder="" />
+              <label class="form-label">加密方式 (SS)</label>
+              <select class="form-input" id="node-cipher">
+                <option value="aes-256-gcm">aes-256-gcm</option>
+                <option value="aes-128-gcm">aes-128-gcm</option>
+                <option value="chacha20-ietf-poly1305">chacha20-ietf-poly1305</option>
+              </select>
+              <label class="form-label">TLS</label>
+              <label class="switch" style="margin-top:4px">
+                <input type="checkbox" id="node-tls" />
+                <span class="slider"></span>
+              </label>
+              <label class="form-label" style="margin-top:8px">导入分享链接 (可选)</label>
+              <textarea class="form-input" id="node-uri" rows="2" placeholder="ss://... 或 vmess://... 或 trojan://..."></textarea>
+              <button class="btn" id="btn-parse-uri" style="margin-top:4px">解析链接</button>
+            </div>
+            <div class="modal-footer">
+              <button class="btn" id="btn-node-cancel">取消</button>
+              <button class="btn btn-primary" id="btn-node-save">添加节点</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-rules">
+        <header class="view-header"><h2>规则</h2></header>
+        <div class="rules-list" id="rules-list"></div>
+      </section>
+
+      <section class="view" id="view-connections">
+        <header class="view-header">
+          <h2>活动连接</h2>
+          <span id="conn-count" class="badge">0</span>
+        </header>
+        <table class="conn-table">
+          <thead>
+            <tr>
+              <th>目标</th><th>网络</th><th>规则</th><th>链路</th><th>上传</th><th>下载</th>
+            </tr>
+          </thead>
+          <tbody id="conn-body"></tbody>
+        </table>
+      </section>
+
+      <section class="view" id="view-logs">
+        <header class="view-header"><h2>日志</h2></header>
+        <div class="logs" id="logs-body"></div>
+      </section>
+
+      <section class="view" id="view-settings">
+        <header class="view-header"><h2>设置</h2></header>
+
+        <div class="section-title" style="margin-bottom:10px">API 连接</div>
+        <div class="settings-list" style="margin-bottom:20px">
+          <div class="setting-row">
+            <div style="flex:1">
+              <div class="setting-title">API 地址</div>
+              <div class="setting-sub">Clash/Redog 内核的 external-controller 地址</div>
+            </div>
+            <input type="text" class="form-input" id="api-url-input" style="width:220px" placeholder="http://127.0.0.1:9090" />
+          </div>
+          <div class="setting-row">
+            <div style="flex:1">
+              <div class="setting-title">API Secret</div>
+              <div class="setting-sub">对应配置中的 secret 字段 (macOS 自动检测 ClashX)</div>
+            </div>
+            <input type="password" class="form-input" id="api-secret-input" style="width:220px" placeholder="留空表示无密钥" />
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-title">连接状态</div>
+              <div class="setting-sub" id="api-status-detail">检测中...</div>
+            </div>
+            <button class="btn" id="save-api-btn">保存并测试</button>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-bottom:10px">通用</div>
+        <div class="settings-list">
+          <div class="setting-row">
+            <div>
+              <div class="setting-title">设为系统代理</div>
+              <div class="setting-sub">将系统网络设置为 127.0.0.1:7890</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="sys-proxy-toggle" />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-title">允许局域网连接</div>
+              <div class="setting-sub">允许其他局域网设备使用代理</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="allow-lan-toggle" />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-title">复制终端代理命令</div>
+              <div class="setting-sub">export https_proxy=...</div>
+            </div>
+            <button class="btn" id="copy-cmd-btn">复制</button>
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-title">重载配置</div>
+              <div class="setting-sub">重新加载 config.yaml</div>
+            </div>
+            <button class="btn" id="reload-btn">重载</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-about">
+        <div class="about">
+          <img class="about-logo" src="redog.svg" alt="Redog" />
+          <h1>Redog</h1>
+          <p class="version" id="about-version">v0.1.0</p>
+          <p>基于 Rust 实现的代理客户端</p>
+          <p class="muted">Core: <span id="about-core">-</span></p>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

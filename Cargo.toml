@@ -1,0 +1,102 @@
+[workspace]
+resolver = "2"
+members = [
+    "redog",
+    "redog-core",
+    "redog-common",
+    "redog-config",
+    "redog-tunnel",
+    "redog-adapter",
+    "redog-listener",
+    "redog-dns",
+    "redog-rules",
+    "redog-transport",
+    "redog-component",
+    "redog-api",
+    "redog-gui/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.75"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec", "io"] }
+futures = "0.3"
+async-trait = "0.1"
+pin-project-lite = "0.2"
+
+# Networking
+socket2 = { version = "0.5", features = ["all"] }
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+axum = { version = "0.7", features = ["ws"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors"] }
+
+# TLS
+rustls = "0.23"
+tokio-rustls = "0.26"
+
+# DNS
+hickory-resolver = "0.24"
+hickory-proto = "0.24"
+hickory-server = "0.24"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# Crypto
+aes-gcm = "0.10"
+chacha20poly1305 = "0.10"
+ring = "0.17"
+md-5 = "0.10"
+sha2 = "0.10"
+hmac = "0.12"
+hkdf = "0.12"
+hex = "0.4"
+uuid = { version = "1", features = ["v4"] }
+
+# Data structures
+bytes = "1"
+dashmap = "6"
+lru = "0.12"
+arc-swap = "1"
+regex = "1"
+ipnet = "2"
+maxminddb = "0.24"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+# Misc
+chrono = { version = "0.4", features = ["serde"] }
+notify = "6"
+url = "2"
+base64 = "0.22"
+rand = "0.8"
+num_cpus = "1"
+
+# Internal crates
+redog-core = { path = "redog-core" }
+redog-common = { path = "redog-common" }
+redog-config = { path = "redog-config" }
+redog-tunnel = { path = "redog-tunnel" }
+redog-adapter = { path = "redog-adapter" }
+redog-listener = { path = "redog-listener" }
+redog-dns = { path = "redog-dns" }
+redog-rules = { path = "redog-rules" }
+redog-transport = { path = "redog-transport" }
+redog-component = { path = "redog-component" }
+redog-api = { path = "redog-api" }

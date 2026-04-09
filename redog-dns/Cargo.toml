@@ -1,0 +1,12 @@
+[package]
+name = "redog-dns"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+redog-core = { workspace = true }
+redog-common = { workspace = true }
+redog-component = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }

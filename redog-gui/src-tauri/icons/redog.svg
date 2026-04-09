@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#FF4444"/>
+      <stop offset="100%" stop-color="#CC2222"/>
+    </radialGradient>
+    <radialGradient id="face" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#E8A065"/>
+      <stop offset="100%" stop-color="#C47A3A"/>
+    </radialGradient>
+    <radialGradient id="ear" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#D4884A"/>
+      <stop offset="100%" stop-color="#A86028"/>
+    </radialGradient>
+    <radialGradient id="snout" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#F5D0A0"/>
+      <stop offset="100%" stop-color="#E8B878"/>
+    </radialGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#bg)"/>
+  <!-- Left ear -->
+  <ellipse cx="145" cy="210" rx="65" ry="90" fill="url(#ear)" transform="rotate(-15 145 210)"/>
+  <!-- Right ear -->
+  <ellipse cx="367" cy="210" rx="65" ry="90" fill="url(#ear)" transform="rotate(15 367 210)"/>
+  <!-- Head/face -->
+  <ellipse cx="256" cy="270" rx="130" ry="140" fill="url(#face)"/>
+  <!-- Forehead tuft -->
+  <ellipse cx="256" cy="170" rx="70" ry="40" fill="#D4884A"/>
+  <!-- Snout -->
+  <ellipse cx="256" cy="320" rx="75" ry="55" fill="url(#snout)"/>
+  <!-- Nose -->
+  <ellipse cx="256" cy="298" rx="22" ry="16" fill="#3D2B1F"/>
+  <!-- Nose highlight -->
+  <ellipse cx="250" cy="294" rx="7" ry="5" fill="#5A4030" opacity="0.6"/>
+  <!-- Mouth -->
+  <path d="M 256 314 Q 240 335 230 330" stroke="#6B4226" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M 256 314 Q 272 335 282 330" stroke="#6B4226" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Left eye -->
+  <ellipse cx="210" cy="250" rx="20" ry="22" fill="#3D2B1F"/>
+  <ellipse cx="214" cy="244" rx="8" ry="9" fill="#FFFFFF"/>
+  <!-- Right eye -->
+  <ellipse cx="302" cy="250" rx="20" ry="22" fill="#3D2B1F"/>
+  <ellipse cx="306" cy="244" rx="8" ry="9" fill="#FFFFFF"/>
+  <!-- Eyebrows -->
+  <path d="M 188 228 Q 205 218 230 225" stroke="#A86028" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M 324 228 Q 307 218 282 225" stroke="#A86028" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <!-- Tongue -->
+  <ellipse cx="256" cy="355" rx="18" ry="22" fill="#FF7088"/>
+  <line x1="256" y1="338" x2="256" y2="365" stroke="#E85870" stroke-width="2"/>
+  <!-- Cheek blush -->
+  <ellipse cx="175" cy="295" rx="22" ry="14" fill="#FF8888" opacity="0.3"/>
+  <ellipse cx="337" cy="295" rx="22" ry="14" fill="#FF8888" opacity="0.3"/>
+</svg>

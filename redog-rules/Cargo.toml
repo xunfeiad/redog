@@ -1,0 +1,11 @@
+[package]
+name = "redog-rules"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+redog-core = { workspace = true }
+redog-component = { workspace = true }
+regex = { workspace = true }
+ipnet = { workspace = true }
+tracing = { workspace = true }

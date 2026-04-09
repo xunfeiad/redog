@@ -1,0 +1,17 @@
+[package]
+name = "redog-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+async-trait = { workspace = true }
+bytes = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

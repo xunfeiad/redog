@@ -1,0 +1,11 @@
+[package]
+name = "redog-listener"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+redog-core = { workspace = true }
+redog-transport = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+bytes = { workspace = true }

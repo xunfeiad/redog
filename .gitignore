@@ -1,0 +1,39 @@
+# Rust
+target/
+**/target/
+Cargo.lock.bak
+*.pdb
+
+# Tauri
+redog-gui/src-tauri/target/
+redog-gui/src-tauri/gen/schemas/
+redog-gui/dist/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.iml
+.fleet/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs
+*.log
+logs/

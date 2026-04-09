@@ -1,0 +1,10 @@
+[package]
+name = "redog-common"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+bytes = { workspace = true }
+tracing = { workspace = true }
+lru = { workspace = true }

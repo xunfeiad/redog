@@ -1,0 +1,20 @@
+[package]
+name = "redog-component"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+redog-core = { workspace = true }
+redog-common = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+lru = { workspace = true }
+dashmap = { workspace = true }
+ipnet = { workspace = true }
+regex = { workspace = true }
+bytes = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

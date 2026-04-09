@@ -1,0 +1,27 @@
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+
+external-controller: 127.0.0.1:9090
+
+dns:
+  enable: true
+  listen: 0.0.0.0:53
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  nameserver:
+    - 8.8.8.8
+    - 223.5.5.5
+
+proxies: []
+
+proxy-groups: []
+
+rules:
+  - DOMAIN-SUFFIX,google.com,DIRECT
+  - DOMAIN-KEYWORD,github,DIRECT
+  - IP-CIDR,192.168.0.0/16,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT
+  - MATCH,DIRECT
