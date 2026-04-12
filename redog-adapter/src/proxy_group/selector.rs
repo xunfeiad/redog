@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use redog_core::adapter::{AdapterType, ProxyAdapter};
@@ -38,7 +39,10 @@ impl Selector {
     /// Get the currently selected proxy name
     pub fn current(&self) -> String {
         let idx = *self.selected.read().unwrap();
-        self.proxies[idx].name().to_string()
+        self.proxies
+            .get(idx)
+            .map(|p| p.name().to_string())
+            .unwrap_or_else(|| "DIRECT".to_string())
     }
 
     /// Get all proxy names
@@ -48,7 +52,10 @@ impl Selector {
 
     fn selected_proxy(&self) -> Arc<dyn ProxyAdapter> {
         let idx = *self.selected.read().unwrap();
-        self.proxies[idx].clone()
+        self.proxies
+            .get(idx)
+            .cloned()
+            .unwrap_or_else(|| self.proxies.first().expect("selector must have proxies").clone())
     }
 }
 
@@ -83,5 +90,9 @@ impl ProxyAdapter for Selector {
 
     fn unwrap_adapter(&self) -> Option<Arc<dyn ProxyAdapter>> {
         Some(self.selected_proxy())
+    }
+
+    fn as_any(&self) -> Option<&dyn Any> {
+        Some(self)
     }
 }

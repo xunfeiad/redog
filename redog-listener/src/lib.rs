@@ -1,4 +1,5 @@
 pub mod http;
+pub mod http_parse;
 pub mod mixed;
 pub mod socks;
 

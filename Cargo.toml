@@ -25,7 +25,7 @@ rust-version = "1.75"
 [workspace.dependencies]
 # Async runtime
 tokio = { version = "1", features = ["full"] }
-tokio-util = { version = "0.7", features = ["codec", "io"] }
+tokio-util = { version = "0.7", features = ["codec", "io", "sync"] }
 futures = "0.3"
 async-trait = "0.1"
 pin-project-lite = "0.2"
@@ -62,6 +62,10 @@ hmac = "0.12"
 hkdf = "0.12"
 hex = "0.4"
 uuid = { version = "1", features = ["v4"] }
+
+# Concurrency
+parking_lot = "0.12"
+smallvec = "1"
 
 # Data structures
 bytes = "1"

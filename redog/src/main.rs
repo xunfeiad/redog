@@ -9,6 +9,16 @@ use redog_tunnel::Tunnel;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::sync::Semaphore;
+
+/// Maximum concurrent connection handlers
+const MAX_CONCURRENT_CONNECTIONS: usize = 4096;
+
+/// Maximum retry attempts for listener restart
+const MAX_LISTENER_RETRIES: u32 = 10;
+
+/// Base delay between listener restarts
+const LISTENER_RETRY_BASE_DELAY_MS: u64 = 500;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -66,7 +76,7 @@ async fn main() -> Result<()> {
     // Channel for inbound connections
     let (tx, mut rx) = tokio::sync::mpsc::channel::<InboundConnection>(256);
 
-    // Start listeners
+    // Start listeners with auto-restart
     let mixed_port = config.mixed_port.unwrap_or(7890);
     let mixed_addr: SocketAddr = if config.allow_lan {
         format!("0.0.0.0:{}", mixed_port).parse()?
@@ -74,13 +84,12 @@ async fn main() -> Result<()> {
         format!("127.0.0.1:{}", mixed_port).parse()?
     };
 
-    // Mixed listener (HTTP + SOCKS5)
+    // Mixed listener (HTTP + SOCKS5) with restart
     let tx_mixed = tx.clone();
-    tokio::spawn(async move {
-        if let Err(e) = redog_listener::mixed::start_mixed_listener(mixed_addr, tx_mixed).await {
-            tracing::error!("mixed listener error: {}", e);
-        }
-    });
+    tokio::spawn(run_listener_with_restart("mixed", mixed_addr, move |addr| {
+        let tx = tx_mixed.clone();
+        async move { redog_listener::mixed::start_mixed_listener(addr, tx).await }
+    }));
 
     // HTTP listener (if configured separately)
     if let Some(http_port) = config.port {
@@ -90,11 +99,10 @@ async fn main() -> Result<()> {
             format!("127.0.0.1:{}", http_port).parse()?
         };
         let tx_http = tx.clone();
-        tokio::spawn(async move {
-            if let Err(e) = redog_listener::http::start_http_listener(http_addr, tx_http).await {
-                tracing::error!("HTTP listener error: {}", e);
-            }
-        });
+        tokio::spawn(run_listener_with_restart("HTTP", http_addr, move |addr| {
+            let tx = tx_http.clone();
+            async move { redog_listener::http::start_http_listener(addr, tx).await }
+        }));
     }
 
     // SOCKS5 listener (if configured separately)
@@ -105,12 +113,10 @@ async fn main() -> Result<()> {
             format!("127.0.0.1:{}", socks_port).parse()?
         };
         let tx_socks = tx.clone();
-        tokio::spawn(async move {
-            if let Err(e) = redog_listener::socks::start_socks_listener(socks_addr, tx_socks).await
-            {
-                tracing::error!("SOCKS5 listener error: {}", e);
-            }
-        });
+        tokio::spawn(run_listener_with_restart("SOCKS5", socks_addr, move |addr| {
+            let tx = tx_socks.clone();
+            async move { redog_listener::socks::start_socks_listener(addr, tx).await }
+        }));
     }
 
     // Start API server
@@ -128,17 +134,66 @@ async fn main() -> Result<()> {
     // Drop the original sender so channel closes when all listeners stop
     drop(tx);
 
+    // Connection concurrency limiter
+    let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_CONNECTIONS));
+
     // Main loop: receive inbound connections and dispatch to tunnel
     tracing::info!("tunnel started, waiting for connections...");
     while let Some(conn) = rx.recv().await {
         let tunnel = tunnel.clone();
+        let permit = match semaphore.clone().acquire_owned().await {
+            Ok(permit) => permit,
+            Err(_) => {
+                tracing::error!("semaphore closed, shutting down");
+                break;
+            }
+        };
+
         tokio::spawn(async move {
             tunnel.handle_tcp(conn).await;
+            drop(permit); // release concurrency slot
         });
     }
 
     tracing::info!("all listeners stopped, shutting down");
     Ok(())
+}
+
+/// Run a listener with exponential backoff restart on failure
+async fn run_listener_with_restart<F, Fut>(
+    name: &'static str,
+    addr: SocketAddr,
+    make_listener: F,
+) where
+    F: Fn(SocketAddr) -> Fut + Send + 'static,
+    Fut: std::future::Future<Output = Result<(), redog_core::error::Error>> + Send,
+{
+    let mut retries = 0u32;
+
+    loop {
+        match make_listener(addr).await {
+            Ok(()) => {
+                tracing::info!("{} listener on {} exited normally", name, addr);
+                break;
+            }
+            Err(e) => {
+                retries += 1;
+                if retries > MAX_LISTENER_RETRIES {
+                    tracing::error!(
+                        "{} listener on {} failed {} times, giving up: {}",
+                        name, addr, retries, e
+                    );
+                    break;
+                }
+                let delay = LISTENER_RETRY_BASE_DELAY_MS * 2u64.saturating_pow(retries - 1);
+                tracing::warn!(
+                    "{} listener error (attempt {}/{}), restarting in {}ms: {}",
+                    name, retries, MAX_LISTENER_RETRIES, delay, e
+                );
+                tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
+            }
+        }
+    }
 }
 
 fn default_config() -> redog_config::Config {

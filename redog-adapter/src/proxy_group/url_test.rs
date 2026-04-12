@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use std::sync::{Arc, RwLock};
 use tokio::time::Duration;
+use tokio_util::sync::CancellationToken;
 
 use redog_core::adapter::{AdapterType, ProxyAdapter};
 use redog_core::conn::{ProxyDatagram, ProxyStream};
@@ -17,6 +18,7 @@ pub struct URLTest {
     tolerance: u16,
     fastest: RwLock<usize>,
     delays: RwLock<Vec<u16>>,
+    cancel: CancellationToken,
 }
 
 impl URLTest {
@@ -36,18 +38,32 @@ impl URLTest {
             tolerance,
             fastest: RwLock::new(0),
             delays: RwLock::new(vec![u16::MAX; len]),
+            cancel: CancellationToken::new(),
         }
     }
 
-    /// Start the background health check loop
+    /// Start the background health check loop (cancellable)
     pub fn start_health_check(self: Arc<Self>) {
+        let cancel = self.cancel.clone();
         tokio::spawn(async move {
             let mut ticker = tokio::time::interval(self.interval);
             loop {
-                ticker.tick().await;
-                self.check_all().await;
+                tokio::select! {
+                    _ = cancel.cancelled() => {
+                        tracing::info!("URLTest '{}': health check stopped", self.name);
+                        break;
+                    }
+                    _ = ticker.tick() => {
+                        self.check_all().await;
+                    }
+                }
             }
         });
+    }
+
+    /// Stop the background health check
+    pub fn stop_health_check(&self) {
+        self.cancel.cancel();
     }
 
     async fn check_all(&self) {
@@ -57,32 +73,29 @@ impl URLTest {
             results.push((idx, delay));
         }
 
-        // Update delays
+        // Atomic update: acquire write lock once for both delays and fastest
         {
             let mut delays = self.delays.write().unwrap();
+            let mut fastest = self.fastest.write().unwrap();
+
             for (idx, delay) in &results {
                 delays[*idx] = *delay;
             }
-        }
 
-        // Find fastest
-        let current = *self.fastest.read().unwrap();
-        let current_delay = results
-            .iter()
-            .find(|(i, _)| *i == current)
-            .map(|(_, d)| *d)
-            .unwrap_or(u16::MAX);
+            let current_delay = delays.get(*fastest).copied().unwrap_or(u16::MAX);
 
-        if let Some((new_fastest, new_delay)) = results.iter().min_by_key(|(_, d)| *d) {
-            if *new_delay + self.tolerance < current_delay {
-                *self.fastest.write().unwrap() = *new_fastest;
-                tracing::info!(
-                    "URLTest '{}': switched to '{}' ({}ms -> {}ms)",
-                    self.name,
-                    self.proxies[*new_fastest].name(),
-                    current_delay,
-                    new_delay,
-                );
+            if let Some((new_fastest, new_delay)) = results.iter().min_by_key(|(_, d)| *d) {
+                if *new_delay + self.tolerance < current_delay {
+                    let old_fastest = *fastest;
+                    *fastest = *new_fastest;
+                    tracing::info!(
+                        "URLTest '{}': switched to '{}' ({}ms -> {}ms)",
+                        self.name,
+                        self.proxies.get(*new_fastest).map(|p| p.name()).unwrap_or("?"),
+                        current_delay,
+                        new_delay,
+                    );
+                }
             }
         }
     }
@@ -102,7 +115,10 @@ impl URLTest {
 
     pub fn current(&self) -> String {
         let idx = *self.fastest.read().unwrap();
-        self.proxies[idx].name().to_string()
+        self.proxies
+            .get(idx)
+            .map(|p| p.name().to_string())
+            .unwrap_or_else(|| "DIRECT".to_string())
     }
 
     pub fn all(&self) -> Vec<String> {
@@ -111,7 +127,16 @@ impl URLTest {
 
     fn fastest_proxy(&self) -> Arc<dyn ProxyAdapter> {
         let idx = *self.fastest.read().unwrap();
-        self.proxies[idx].clone()
+        self.proxies
+            .get(idx)
+            .cloned()
+            .unwrap_or_else(|| self.proxies.first().expect("url_test must have proxies").clone())
+    }
+}
+
+impl Drop for URLTest {
+    fn drop(&mut self) {
+        self.cancel.cancel();
     }
 }
 

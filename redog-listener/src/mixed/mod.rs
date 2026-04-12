@@ -2,9 +2,10 @@ use redog_core::error::Error;
 use redog_core::metadata::{InboundType, Metadata, Network};
 use redog_transport::socks5;
 use std::net::SocketAddr;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
+use crate::http_parse::{extract_host_from_target, parse_host_port};
 use crate::InboundConnection;
 
 /// Start a mixed listener (HTTP + SOCKS5 on the same port)
@@ -91,7 +92,7 @@ async fn handle_http(
     let target = parts[1];
 
     if method.eq_ignore_ascii_case("CONNECT") {
-        let (host, port) = parse_connect_target(target)?;
+        let (host, port) = parse_host_port(target, 443)?;
 
         // Read remaining headers
         loop {
@@ -115,15 +116,7 @@ async fn handle_http(
         Ok(InboundConnection { stream, metadata })
     } else {
         // Plain HTTP
-        let host_port = if target.starts_with("http://") {
-            let url_part = &target[7..];
-            let end = url_part.find('/').unwrap_or(url_part.len());
-            url_part[..end].to_string()
-        } else {
-            target.to_string()
-        };
-
-        let (host, port) = parse_connect_target(&host_port).unwrap_or((host_port, 80));
+        let (host, port) = extract_host_from_target(target, 80)?;
 
         loop {
             let mut line = String::new();
@@ -140,17 +133,5 @@ async fn handle_http(
 
         let stream = reader.into_inner();
         Ok(InboundConnection { stream, metadata })
-    }
-}
-
-fn parse_connect_target(s: &str) -> Result<(String, u16), Error> {
-    if let Some(colon) = s.rfind(':') {
-        let host = s[..colon].to_string();
-        let port: u16 = s[colon + 1..]
-            .parse()
-            .map_err(|_| Error::Protocol(format!("invalid port in: {}", s)))?;
-        Ok((host, port))
-    } else {
-        Err(Error::Protocol(format!("no port in: {}", s)))
     }
 }

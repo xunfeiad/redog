@@ -1,6 +1,7 @@
 use dashmap::DashMap;
 use std::sync::Arc;
 use tokio::time::{Duration, Instant};
+use tokio_util::sync::CancellationToken;
 
 use redog_core::conn::ProxyDatagram;
 
@@ -14,6 +15,7 @@ pub struct UdpSession {
 pub struct NatTable {
     table: DashMap<String, UdpSession>,
     timeout: Duration,
+    cancel: CancellationToken,
 }
 
 impl NatTable {
@@ -21,6 +23,7 @@ impl NatTable {
         Self {
             table: DashMap::new(),
             timeout,
+            cancel: CancellationToken::new(),
         }
     }
 
@@ -58,18 +61,31 @@ impl NatTable {
         before - self.table.len()
     }
 
-    /// Start background cleanup loop
+    /// Start background cleanup loop (cancellable)
     pub fn start_cleanup_loop(self: Arc<Self>) {
+        let cancel = self.cancel.clone();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(30));
             loop {
-                interval.tick().await;
-                let removed = self.cleanup();
-                if removed > 0 {
-                    tracing::debug!("NAT table cleanup: removed {} expired sessions", removed);
+                tokio::select! {
+                    _ = cancel.cancelled() => {
+                        tracing::debug!("NAT table cleanup loop stopped");
+                        break;
+                    }
+                    _ = interval.tick() => {
+                        let removed = self.cleanup();
+                        if removed > 0 {
+                            tracing::debug!("NAT table cleanup: removed {} expired sessions", removed);
+                        }
+                    }
                 }
             }
         });
+    }
+
+    /// Stop the background cleanup loop
+    pub fn stop_cleanup(&self) {
+        self.cancel.cancel();
     }
 
     pub fn len(&self) -> usize {
@@ -78,5 +94,11 @@ impl NatTable {
 
     pub fn is_empty(&self) -> bool {
         self.table.is_empty()
+    }
+}
+
+impl Drop for NatTable {
+    fn drop(&mut self) {
+        self.cancel.cancel();
     }
 }

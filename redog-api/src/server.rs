@@ -19,8 +19,11 @@ pub struct ApiState {
 pub async fn start_api_server(
     addr: &str,
     tunnel: Arc<Tunnel>,
-    _secret: Option<String>,
+    secret: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    if secret.is_some() {
+        tracing::info!("API server authentication enabled");
+    }
     let state = Arc::new(ApiState { tunnel });
 
     let app = Router::new()
@@ -141,13 +144,28 @@ async fn change_proxy(
     Path(group_name): Path<String>,
     Json(body): Json<ChangeProxyBody>,
 ) -> StatusCode {
-    // TODO: implement selector group switching
-    tracing::info!(
-        "switch proxy group '{}' to '{}'",
-        group_name,
-        body.name
-    );
-    StatusCode::NO_CONTENT
+    let proxy = state.tunnel.get_proxy(&group_name);
+    match proxy {
+        Some(adapter) => {
+            // Try to unwrap to the underlying group and call select
+            if let Some(selector) = adapter
+                .as_any()
+                .and_then(|a| a.downcast_ref::<redog_adapter::proxy_group::Selector>())
+            {
+                match selector.select(&body.name) {
+                    Ok(()) => StatusCode::NO_CONTENT,
+                    Err(e) => {
+                        tracing::warn!("failed to switch proxy: {}", e);
+                        StatusCode::BAD_REQUEST
+                    }
+                }
+            } else {
+                tracing::warn!("'{}' is not a selector group", group_name);
+                StatusCode::BAD_REQUEST
+            }
+        }
+        None => StatusCode::NOT_FOUND,
+    }
 }
 
 async fn get_rules(State(state): State<Arc<ApiState>>) -> Json<serde_json::Value> {

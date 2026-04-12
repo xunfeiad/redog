@@ -99,20 +99,37 @@ fn default_bind_address() -> String {
 
 impl Config {
     pub fn validate(&self) -> Result<(), Error> {
+        // Validate port ranges (must be 1-65535)
+        let all_ports: Vec<(&str, Option<u16>)> = vec![
+            ("port", self.port),
+            ("socks-port", self.socks_port),
+            ("mixed-port", self.mixed_port),
+            ("redir-port", self.redir_port),
+            ("tproxy-port", self.tproxy_port),
+        ];
+        for (name, maybe_port) in &all_ports {
+            if let Some(p) = maybe_port {
+                if *p == 0 {
+                    return Err(Error::Config(format!(
+                        "invalid {} value: port must be 1-65535",
+                        name
+                    )));
+                }
+            }
+        }
+
         // Check for port conflicts
         let mut ports = Vec::new();
-        if let Some(p) = self.port {
-            ports.push(p);
-        }
-        if let Some(p) = self.socks_port {
-            ports.push(p);
-        }
-        if let Some(p) = self.mixed_port {
-            ports.push(p);
-        }
-        let unique: HashSet<_> = ports.iter().collect();
-        if unique.len() != ports.len() {
-            return Err(Error::Config("port conflict detected".into()));
+        for (name, maybe_port) in &all_ports {
+            if let Some(p) = maybe_port {
+                if ports.contains(p) {
+                    return Err(Error::Config(format!(
+                        "port conflict: {} ({}) is already in use",
+                        name, p
+                    )));
+                }
+                ports.push(*p);
+            }
         }
 
         // Validate proxy group references
@@ -129,6 +146,12 @@ impl Config {
             .collect();
 
         for group in &self.proxy_groups {
+            if group.proxies.is_empty() && group.use_providers.is_empty() {
+                return Err(Error::Config(format!(
+                    "proxy group '{}' has no proxies or providers",
+                    group.name
+                )));
+            }
             for proxy_name in &group.proxies {
                 if !proxy_names.contains(proxy_name) {
                     return Err(Error::Config(format!(
@@ -136,6 +159,27 @@ impl Config {
                         group.name, proxy_name
                     )));
                 }
+            }
+        }
+
+        // Validate rule syntax (basic check)
+        for (i, rule_str) in self.rules.iter().enumerate() {
+            let parts: Vec<&str> = rule_str.splitn(3, ',').collect();
+            if parts.len() < 2 {
+                return Err(Error::Config(format!(
+                    "rule #{} '{}': must have at least type and target",
+                    i + 1,
+                    rule_str
+                )));
+            }
+        }
+
+        // Validate DNS config
+        if let Some(ref dns) = self.dns {
+            if dns.enable && dns.nameserver.is_empty() {
+                return Err(Error::Config(
+                    "DNS is enabled but no nameservers configured".into(),
+                ));
             }
         }
 

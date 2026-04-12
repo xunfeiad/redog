@@ -84,8 +84,11 @@ impl FakeIpPool {
 
     fn allocate(&self) -> Ipv4Addr {
         let mut offset = self.offset.lock().unwrap();
-        let ip_num = self.network + (*offset % (self.pool_size - 1)) + 1;
-        *offset = offset.wrapping_add(1);
+        // Usable addresses: network+1 .. network+pool_size-1 (skip network and broadcast)
+        let usable = self.pool_size.saturating_sub(2).max(1);
+        let ip_num = self.network + (*offset % usable) + 1;
+        // Use wrapping within usable range to avoid u32 overflow
+        *offset = (*offset + 1) % usable;
         Ipv4Addr::from(ip_num)
     }
 }

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::fmt;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -89,6 +90,11 @@ pub trait ProxyAdapter: Send + Sync + fmt::Debug {
 
     /// Unwrap inner adapter (for proxy groups)
     fn unwrap_adapter(&self) -> Option<Arc<dyn ProxyAdapter>> {
+        None
+    }
+
+    /// Downcast to concrete type for type-specific operations
+    fn as_any(&self) -> Option<&dyn Any> {
         None
     }
 }

@@ -60,13 +60,13 @@ pub fn parse_rule(line: &str) -> Result<Box<dyn Rule>, String> {
             let port: u16 = payload
                 .parse()
                 .map_err(|e| format!("invalid port '{}': {}", payload, e))?;
-            Ok(Box::new(SrcPortRule { port, adapter }))
+            Ok(Box::new(SrcPortRule::new(port, adapter)))
         }
         "DST-PORT" => {
             let port: u16 = payload
                 .parse()
                 .map_err(|e| format!("invalid port '{}': {}", payload, e))?;
-            Ok(Box::new(DstPortRule { port, adapter }))
+            Ok(Box::new(DstPortRule::new(port, adapter)))
         }
         _ => Err(format!("unknown rule type: {}", rule_type)),
     }

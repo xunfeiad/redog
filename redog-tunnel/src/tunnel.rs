@@ -21,6 +21,13 @@ pub enum Mode {
     Direct,
 }
 
+/// Result of a rule match — uses Arc<str> to avoid repeated cloning
+struct MatchResult {
+    rule_name: Arc<str>,
+    rule_payload: Arc<str>,
+    adapter: Arc<dyn ProxyAdapter>,
+}
+
 /// The central routing engine
 pub struct Tunnel {
     /// All available proxies (name -> adapter)
@@ -61,19 +68,19 @@ impl Tunnel {
         tracing::debug!("new connection: {}", metadata);
 
         // 1. Match rules to find the target adapter
-        let (rule_name, rule_payload, adapter) = self.match_adapter(&metadata).await;
+        let m = self.match_adapter(&metadata).await;
 
-        let adapter_name = adapter.name().to_string();
+        let adapter_name = m.adapter.name().to_string();
         tracing::info!(
             "{} -> {} [{}] ({})",
             metadata.destination(),
             adapter_name,
-            rule_name,
-            rule_payload
+            m.rule_name,
+            m.rule_payload
         );
 
         // 2. Connect to remote through the adapter
-        let remote_stream = match adapter.connect_stream(&metadata).await {
+        let remote_stream = match m.adapter.connect_stream(&metadata).await {
             Ok(s) => s,
             Err(e) => {
                 tracing::warn!(
@@ -93,8 +100,8 @@ impl Tunnel {
             network: metadata.network.to_string(),
             inbound_type: metadata.inbound_type.to_string(),
             chains: vec![adapter_name.clone()],
-            rule: rule_name.clone(),
-            rule_payload: rule_payload.clone(),
+            rule: m.rule_name.to_string(),
+            rule_payload: m.rule_payload.to_string(),
             upload: 0,
             download: 0,
             start: chrono::Utc::now(),
@@ -132,10 +139,7 @@ impl Tunnel {
     }
 
     /// Match metadata against rules and return the adapter
-    async fn match_adapter(
-        &self,
-        metadata: &Metadata,
-    ) -> (String, String, Arc<dyn ProxyAdapter>) {
+    async fn match_adapter(&self, metadata: &Metadata) -> MatchResult {
         let mode = **self.mode.load();
 
         match mode {
@@ -145,7 +149,11 @@ impl Tunnel {
                     .get("DIRECT")
                     .cloned()
                     .unwrap_or_else(|| Arc::new(Direct::new()));
-                ("DIRECT".to_string(), String::new(), adapter)
+                MatchResult {
+                    rule_name: "DIRECT".into(),
+                    rule_payload: "".into(),
+                    adapter,
+                }
             }
             Mode::Global => {
                 let proxies = self.proxies.load();
@@ -157,17 +165,18 @@ impl Tunnel {
                     })
                     .cloned()
                     .unwrap_or_else(|| Arc::new(Direct::new()));
-                ("GLOBAL".to_string(), String::new(), adapter)
+                MatchResult {
+                    rule_name: "GLOBAL".into(),
+                    rule_payload: "".into(),
+                    adapter,
+                }
             }
             Mode::Rule => self.rule_match(metadata).await,
         }
     }
 
     /// Match metadata against the ordered rule list
-    async fn rule_match(
-        &self,
-        metadata: &Metadata,
-    ) -> (String, String, Arc<dyn ProxyAdapter>) {
+    async fn rule_match(&self, metadata: &Metadata) -> MatchResult {
         let rules = self.rules.load();
         let proxies = self.proxies.load();
 
@@ -175,11 +184,11 @@ impl Tunnel {
             if rule.matches(metadata) {
                 let adapter_name = rule.adapter();
                 if let Some(adapter) = proxies.get(adapter_name) {
-                    return (
-                        rule.rule_type().to_string(),
-                        rule.payload().to_string(),
-                        adapter.clone(),
-                    );
+                    return MatchResult {
+                        rule_name: Arc::from(rule.rule_type().to_string()),
+                        rule_payload: Arc::from(rule.payload()),
+                        adapter: adapter.clone(),
+                    };
                 }
             }
         }
@@ -189,7 +198,11 @@ impl Tunnel {
             .get("DIRECT")
             .cloned()
             .unwrap_or_else(|| Arc::new(Direct::new()));
-        ("MATCH".to_string(), String::new(), adapter)
+        MatchResult {
+            rule_name: "MATCH".into(),
+            rule_payload: "".into(),
+            adapter,
+        }
     }
 
     /// Update the proxy map

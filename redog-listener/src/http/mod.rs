@@ -4,6 +4,7 @@ use std::net::SocketAddr;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
+use crate::http_parse::{extract_host_from_target, parse_host_port};
 use crate::InboundConnection;
 
 /// Start an HTTP proxy listener
@@ -76,16 +77,7 @@ async fn handle_http_connection(
         Ok(InboundConnection { stream, metadata })
     } else {
         // Plain HTTP proxy (GET, POST, etc.)
-        // Parse Host header from the URL or headers
-        let host_port = if target.starts_with("http://") {
-            let url_part = &target[7..];
-            let end = url_part.find('/').unwrap_or(url_part.len());
-            &url_part[..end]
-        } else {
-            target
-        };
-
-        let (host, port) = parse_host_port(host_port, 80)?;
+        let (host, port) = extract_host_from_target(target, 80)?;
 
         // Read remaining headers
         let mut headers = request_line.clone();
@@ -107,26 +99,5 @@ async fn handle_http_connection(
 
         let stream = reader.into_inner();
         Ok(InboundConnection { stream, metadata })
-    }
-}
-
-fn parse_host_port(s: &str, default_port: u16) -> Result<(String, u16), Error> {
-    if let Some(bracket_end) = s.find(']') {
-        // IPv6: [::1]:port
-        let host = s[1..bracket_end].to_string();
-        let port = if s.len() > bracket_end + 2 && s.as_bytes()[bracket_end + 1] == b':' {
-            s[bracket_end + 2..]
-                .parse()
-                .unwrap_or(default_port)
-        } else {
-            default_port
-        };
-        Ok((host, port))
-    } else if let Some(colon) = s.rfind(':') {
-        let host = s[..colon].to_string();
-        let port = s[colon + 1..].parse().unwrap_or(default_port);
-        Ok((host, port))
-    } else {
-        Ok((s.to_string(), default_port))
     }
 }

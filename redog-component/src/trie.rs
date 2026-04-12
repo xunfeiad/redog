@@ -54,14 +54,19 @@ impl DomainTrie {
     }
 
     /// Look up a domain, returning the matched data
+    /// Uses a stack-based reverse iterator to avoid Vec allocation
     pub fn lookup(&self, domain: &str) -> Option<&str> {
-        let labels: Vec<&str> = domain.split('.').rev().collect();
         let mut node = &self.root;
         let mut last_match: Option<&str> = None;
 
-        for (i, label) in labels.iter().enumerate() {
-            let lower = label.to_lowercase();
-            match node.children.get(&lower) {
+        // Collect labels into a small stack-allocated buffer to iterate in reverse
+        // without heap allocation for typical domains (<=8 labels)
+        let mut labels: smallvec::SmallVec<[&str; 8]> = domain.split('.').collect();
+        labels.reverse();
+
+        for label in &labels {
+            let lower = label.to_ascii_lowercase();
+            match node.children.get(lower.as_str()) {
                 Some(child) => {
                     node = child;
                     if let Some(ref data) = node.data {

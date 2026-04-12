@@ -3147,6 +3147,7 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "lru",
+ "parking_lot",
  "tokio",
  "tracing",
 ]
